@@ -58,12 +58,22 @@ class _DashboardViewState extends State<DashboardView> {
                 : Icons.play_arrow_rounded),
           ),
           Expanded(
-            child: Slider(
-              value: dashboardModel.current,
-              max: dashboardModel.max,
-              onChanged: (value) {},
+            child: SliderTheme(
+              data: const SliderThemeData(
+                showValueIndicator: ShowValueIndicator.onlyForContinuous,
+              ),
+              child: Slider(
+                value: dashboardModel.current,
+                max: dashboardModel.max,
+                label: dashboardModel.currentFormatted(),
+                onChanged: dashboardModel.selectedIndex != -1
+                    ? (value) => dashboardModel.seek(player, value)
+                    : null,
+              ),
             ),
           ),
+          Text(
+              "${dashboardModel.currentFormatted()} - ${dashboardModel.maxFormatted()}      ")
         ])
       ]),
     );
@@ -71,8 +81,8 @@ class _DashboardViewState extends State<DashboardView> {
 
   @override
   void dispose() {
-    for (final element in dashboardModel.subscriptions) {
-      element.cancel();
+    for (final sub in dashboardModel.subscriptions) {
+      sub.cancel();
     }
     player.dispose();
     super.dispose();

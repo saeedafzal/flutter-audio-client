@@ -20,12 +20,13 @@ class DashboardModel {
 
     subscriptions.add(player.stream.completed.listen((event) {
       if (event) {
-        setState(() {
-          selectedIndex = selectedIndex + 1;
-          if (selectedIndex == mediaList.length - 1) {
-            selectedIndex = 0;
-          }
-        });
+        int newIndex = selectedIndex + 1;
+        if (newIndex >= mediaList.length) {
+          newIndex = 0;
+        }
+
+        setState(() => selectedIndex = newIndex);
+        loadAndPlay(newIndex, player);
       }
     }));
 
@@ -57,5 +58,23 @@ class DashboardModel {
 
   void playOrPause(Player player) {
     player.playOrPause();
+  }
+
+  void seek(Player player, double value) {
+    player.seek(Duration(milliseconds: value.toInt()));
+  }
+
+  String currentFormatted() =>
+      _formatDuration(Duration(milliseconds: current.toInt()));
+
+  String maxFormatted() => _formatDuration(Duration(milliseconds: max.toInt()));
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    final String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    final String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    return duration.inHours > 0
+        ? "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds"
+        : "$twoDigitMinutes:$twoDigitSeconds";
   }
 }
