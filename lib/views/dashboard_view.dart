@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_audio_client/views/dashboard_model.dart';
+import 'package:flutter_audio_client/%20core/player_handler.dart';
+import 'package:flutter_audio_client/components/controls.dart';
+import 'package:flutter_audio_client/components/duration_labels.dart';
+import 'package:flutter_audio_client/components/seeker.dart';
+import 'package:flutter_audio_client/notifiers/playlist_notifier.dart';
+import 'package:flutter_audio_client/views/playlist_view.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:provider/provider.dart';
 
 class DashboardView extends StatefulWidget {
   const DashboardView({super.key});
@@ -10,70 +16,44 @@ class DashboardView extends StatefulWidget {
 }
 
 class _DashboardViewState extends State<DashboardView> {
-  final player = Player();
-  final dashboardModel = DashboardModel();
+  late final PlayerHandler playerHandler;
+  late final Player player;
 
   @override
   void initState() {
     super.initState();
-    dashboardModel.init(player, setState);
+
+    final playlistNotifier = context.read<PlaylistNotifier>();
+
+    player = Player();
+    player.setPlaylistMode(PlaylistMode.loop);
+    playlistNotifier.player = player;
+
+    playerHandler = PlayerHandler(
+      player: player,
+      notifier: playlistNotifier,
+    );
+
+    playerHandler.subscribeToEvents();
   }
 
   @override
   Widget build(BuildContext context) {
+    var playlistNotifier = context.read<PlaylistNotifier>();
+
     return Scaffold(
-      appBar: AppBar(
-        actions: [
-          ElevatedButton(
-            onPressed: () => setState(dashboardModel.loadMusicDirectory),
-            child: const Text("Load Music Directory"),
-          )
-        ],
-      ),
-      body: Column(children: [
-        Expanded(
-          child: ListView.builder(
-            itemCount: dashboardModel.mediaList.length,
-            itemBuilder: (_, index) {
-              final media = dashboardModel.mediaList[index];
-              final filename = media.uri.split("/").last;
-              return ListTile(
-                title: Text(filename),
-                selected: dashboardModel.selectedIndex == index,
-                onTap: () {
-                  dashboardModel.loadAndPlay(index, player);
-                  setState(() => dashboardModel.selectedIndex = index);
-                },
-              );
-            },
-          ),
-        ),
+      appBar: AppBar(actions: [
+        ElevatedButton(
+          onPressed: playlistNotifier.loadMusicDirectory,
+          child: const Text("Load Music Directory"),
+        )
+      ]),
+      body: const Column(children: [
+        Expanded(child: PlaylistView()),
         Row(children: [
-          IconButton(
-            onPressed: dashboardModel.selectedIndex != -1
-                ? () => dashboardModel.playOrPause(player)
-                : null,
-            icon: Icon(dashboardModel.isPlaying
-                ? Icons.pause_rounded
-                : Icons.play_arrow_rounded),
-          ),
-          Expanded(
-            child: SliderTheme(
-              data: const SliderThemeData(
-                showValueIndicator: ShowValueIndicator.onlyForContinuous,
-              ),
-              child: Slider(
-                value: dashboardModel.current,
-                max: dashboardModel.max,
-                label: dashboardModel.currentFormatted(),
-                onChanged: dashboardModel.selectedIndex != -1
-                    ? (value) => dashboardModel.seek(player, value)
-                    : null,
-              ),
-            ),
-          ),
-          Text(
-              "${dashboardModel.currentFormatted()} - ${dashboardModel.maxFormatted()}      ")
+          Controls(),
+          Expanded(child: Seeker()),
+          DurationLabels(),
         ])
       ]),
     );
@@ -81,9 +61,7 @@ class _DashboardViewState extends State<DashboardView> {
 
   @override
   void dispose() {
-    for (final sub in dashboardModel.subscriptions) {
-      sub.cancel();
-    }
+    playerHandler.cancelSubscriptions();
     player.dispose();
     super.dispose();
   }
